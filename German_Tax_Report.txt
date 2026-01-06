@@ -1,0 +1,16 @@
+INDO-GERMAN TAX REPORT
+========================
+
+Total German Gross: €{r['de_gross']:,.2f}
+Total Deductions: €{r['total_deductions']:,.2f}
+Taxable German Income (zvE): €{r['taxable_income_de']:,.2f}
+--------------------------------
+Foreign Income (for rate): €{r['foreign_income']:,.2f}
+Effective Tax Rate (Progressionsvorbehalt): {r['effective_tax_rate']*100:.2f}%
+Calculated German Tax: €{r['final_tax_liability']:,.2f}
+- Credit for Tax Paid in India (TDS): €{r['tds_credit']:,.2f}
+- Credit for Ancillary Labor Costs: €{r['nebenkosten_credit']:,.2f}
+--- Net German Tax Due: €{r['net_german_tax_due']:,.2f} ---
+--------------------------------
+Tax Already Paid in Germany (Lohnsteuer): €{r['de_tax_paid']:,.2f}
+--- ESTIMATED ADDITIONAL PAYMENT: €{abs(r['refund_or_payment']):,.2f} ---
