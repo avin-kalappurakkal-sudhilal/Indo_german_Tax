@@ -32,8 +32,11 @@ class PersonalFamilyPage(QWizardPage):
         self.setTitle("Step 1: Family & Tax Status")
         layout = QFormLayout()
 
+        self.married_checkbox = QCheckBox("Filing jointly as a married couple")
+        self.married_checkbox.stateChanged.connect(self.update_tax_classes)
+        layout.addRow(self.married_checkbox)
+
         self.tax_class = QComboBox()
-        self.tax_class.addItems(["1 (Single)", "3 (Married - Main Earner)", "4 (Married - Equal)", "5 (Married - Partner)"])
         layout.addRow("Tax Class (Steuerklasse):", self.tax_class)
 
         self.num_kids = QDoubleSpinBox()
@@ -42,15 +45,26 @@ class PersonalFamilyPage(QWizardPage):
 
         self.parents_support = QDoubleSpinBox()
         self.parents_support.setRange(0, 50000)
-        self.parents_support.setPrefix("€ ")
+        self.parents_support.setPrefix("\u20ac ")
         self.parents_support.setToolTip("Money sent to parents in India via bank transfer for their living costs.")
         layout.addRow("Support to Parents (Unterhalt):", self.parents_support)
 
         # Register Fields
-        self.registerField("tax_class*", self.tax_class, "currentIndex", self.tax_class.currentIndexChanged)
+        self.registerField("is_married", self.married_checkbox)
+        self.registerField("tax_class", self.tax_class, "currentIndex", self.tax_class.currentIndexChanged)
         self.registerField("num_kids", self.num_kids, "value", self.num_kids.valueChanged)
         self.registerField("parents_support", self.parents_support, "value", self.parents_support.valueChanged)
+        
         self.setLayout(layout)
+        self.update_tax_classes() # Set initial state
+
+    def update_tax_classes(self):
+        is_married = self.married_checkbox.isChecked()
+        self.tax_class.clear()
+        if is_married:
+            self.tax_class.addItems(["3 (Married - Main Earner)", "4 (Married - Equal)", "5 (Married - Partner)"])
+        else:
+            self.tax_class.addItems(["1 (Single)"])
 
 class GermanIncomePage(QWizardPage):
     def __init__(self):
@@ -238,7 +252,7 @@ class ResultPage(QWizardPage):
     def initializePage(self):
         # 1. Gather all data from wizard fields
         field_names = [
-            "tax_class", "num_kids", "parents_support",
+            "is_married", "tax_class", "num_kids", "parents_support",
             # Person A
             "de_gross_a", "de_tax_paid_a",
             "de_pension_a", "de_health_a", "de_nursing_a", "de_unemployment_a",

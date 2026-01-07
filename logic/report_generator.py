@@ -139,8 +139,18 @@ def generate_full_report(data):
     total_gross = de_gross_a + de_gross_b
     total_tax_paid = de_tax_paid_a + de_tax_paid_b
     
-    # Tax class 1 (index 0) is single, others are married.
-    is_married = (data.get("tax_class", 0) != 0)
+    # Determine marital status and correct tax class number from UI data
+    is_married = data.get("is_married", False)
+    tax_class_index = data.get("tax_class", 0)
+    tax_class = 0
+    if is_married:
+        # Married: Index 0 -> Class 3, 1 -> 4, 2 -> 5
+        tax_class = tax_class_index + 3
+    else:
+        # Single: Index 0 -> Class 1
+        tax_class = 1
+    
+    d_print(f"  - Determined marital status: {is_married} | Tax Class: {tax_class}")
 
     # 2. Foreign Income (converted to EUR)
     in_rent_eur = data.get("in_rent", 0.0) * constants.INR_TO_EUR_RATE
@@ -199,6 +209,7 @@ def generate_full_report(data):
         
         # Final Result
         "refund_or_payment": refund_or_payment,
+        "tax_class": tax_class,
     }
     
     d_print("\n--- FINAL COMPILED REPORT ---")
