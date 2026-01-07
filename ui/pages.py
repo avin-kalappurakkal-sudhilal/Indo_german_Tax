@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from logic.report_generator import generate_full_report
+from logic.utils import estimate_social_security_2026
 
 # ==========================================
 # UI PAGES
@@ -83,7 +84,15 @@ class GermanIncomePage(QWizardPage):
         self.nursing_a = QDoubleSpinBox(); self.nursing_a.setRange(0, 10000); self.nursing_a.setPrefix("\u20ac ")
         self.unemployment_a = QDoubleSpinBox(); self.unemployment_a.setRange(0, 10000); self.unemployment_a.setPrefix("\u20ac ")
 
-        layout_a.addRow("Annual Gross Salary (Line 3):", self.gross_a)
+        # Gross Salary Row with Estimate Button
+        gross_a_layout = QHBoxLayout()
+        gross_a_layout.addWidget(self.gross_a)
+        estimate_button_a = QPushButton("Estimate SS")
+        estimate_button_a.setToolTip("Estimate Social Security contributions from Gross Salary")
+        gross_a_layout.addWidget(estimate_button_a)
+        estimate_button_a.clicked.connect(self._estimate_ss_a)
+
+        layout_a.addRow("Annual Gross Salary (Line 3):", gross_a_layout)
         layout_a.addRow("Income Tax Paid (Line 4):", self.tax_paid_a)
         layout_a.addRow("Pension Insurance (22a/23a):", self.pension_a)
         layout_a.addRow("Health Insurance (25):", self.health_a)
@@ -102,7 +111,15 @@ class GermanIncomePage(QWizardPage):
         self.nursing_b = QDoubleSpinBox(); self.nursing_b.setRange(0, 10000); self.nursing_b.setPrefix("\u20ac ")
         self.unemployment_b = QDoubleSpinBox(); self.unemployment_b.setRange(0, 10000); self.unemployment_b.setPrefix("\u20ac ")
 
-        layout_b.addRow("Annual Gross Salary (Line 3):", self.gross_b)
+        # Gross Salary Row with Estimate Button
+        gross_b_layout = QHBoxLayout()
+        gross_b_layout.addWidget(self.gross_b)
+        estimate_button_b = QPushButton("Estimate SS")
+        estimate_button_b.setToolTip("Estimate Social Security contributions from Gross Salary")
+        gross_b_layout.addWidget(estimate_button_b)
+        estimate_button_b.clicked.connect(self._estimate_ss_b)
+
+        layout_b.addRow("Annual Gross Salary (Line 3):", gross_b_layout)
         layout_b.addRow("Income Tax Paid (Line 4):", self.tax_paid_b)
         layout_b.addRow("Pension Insurance (22a/23a):", self.pension_b)
         layout_b.addRow("Health Insurance (25):", self.health_b)
@@ -128,6 +145,36 @@ class GermanIncomePage(QWizardPage):
         self.registerField("de_health_b", self.health_b, "value", self.health_b.valueChanged)
         self.registerField("de_nursing_b", self.nursing_b, "value", self.nursing_b.valueChanged)
         self.registerField("de_unemployment_b", self.unemployment_b, "value", self.unemployment_b.valueChanged)
+
+    def _estimate_ss_a(self):
+        gross_salary = self.gross_a.value()
+        has_kids = (self.field("num_kids") or 0) > 0
+        
+        if gross_salary <= 0:
+            QMessageBox.warning(self, "Missing Gross Salary", "Please enter a valid Gross Salary for Person A first.")
+            return
+
+        estimates = estimate_social_security_2026(gross_salary, has_kids)
+
+        self.pension_a.setValue(estimates["pension"])
+        self.health_a.setValue(estimates["health"])
+        self.nursing_a.setValue(estimates["nursing"])
+        self.unemployment_a.setValue(estimates["unemployment"])
+
+    def _estimate_ss_b(self):
+        gross_salary = self.gross_b.value()
+        has_kids = (self.field("num_kids") or 0) > 0
+        
+        if gross_salary <= 0:
+            QMessageBox.warning(self, "Missing Gross Salary", "Please enter a valid Gross Salary for Person B first.")
+            return
+
+        estimates = estimate_social_security_2026(gross_salary, has_kids)
+
+        self.pension_b.setValue(estimates["pension"])
+        self.health_b.setValue(estimates["health"])
+        self.nursing_b.setValue(estimates["nursing"])
+        self.unemployment_b.setValue(estimates["unemployment"])
 
 
 class IndianIncomePage(QWizardPage):
@@ -284,10 +331,21 @@ class ResultPage(QWizardPage):
     def display_report(self):
         r = self.report_data
         
+        # Create a warnings block if any warnings were generated
+        warnings_html = ""
+        if r.get("warnings"):
+            warnings_list = "".join([f"<li>{w}</li>" for w in r["warnings"]])
+            warnings_html = f"""
+            <div style="background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+                <h3 style="margin-top: 0;">Please Note:</h3>
+                <ul>{warnings_list}</ul>
+            </div>
+            """
+
         refund_or_payment_text = (
-            f"<h2 style='color:green;'>ESTIMATED REFUND: {r['refund_or_payment']:,.2f}\u20ac</h2>"
+            f"<h2 style='color:green;'>ESTIMATED REFUND: {r['refund_or_payment']:,.2f}€</h2>"
             if r['refund_or_payment'] > 0
-            else f"<h2 style='color:red;'>ESTIMATED ADDITIONAL PAYMENT: {abs(r['refund_or_payment']):,.2f}\u20ac</h2>"
+            else f"<h2 style='color:red;'>ESTIMATED ADDITIONAL PAYMENT: {abs(r['refund_or_payment']):,.2f}€</h2>"
         )
         
         is_married = (self.field("tax_class") or 0) != 0
@@ -303,83 +361,83 @@ class ResultPage(QWizardPage):
             </tr>
             <tr>
                 <td style="padding: 6px;"><b>Annual Gross Income</b></td>
-                <td style="padding: 6px; text-align: right;">{r['de_gross_a']:,.2f}\u20ac</td>
-                <td style="padding: 6px; text-align: right;">{r['de_gross_b']:,.2f}\u20ac</td>
-                <td style="padding: 6px; text-align: right;"><b>{r['total_gross']:,.2f}\u20ac</b></td>
+                <td style="padding: 6px; text-align: right;">{r['de_gross_a']:,.2f}€</td>
+                <td style="padding: 6px; text-align: right;">{r['de_gross_b']:,.2f}€</td>
+                <td style="padding: 6px; text-align: right;"><b>{r['total_gross']:,.2f}€</b></td>
             </tr>
             <tr style="background-color:#f2f2f2;">
                 <td style="padding: 6px;" colspan="4"><b>(-) Mandatory Social Security (Vorsorgeaufwendungen)</b></td>
             </tr>
             <tr>
                 <td style="padding: 6px;">Pension Insurance</td>
-                <td style="padding: 6px; text-align: right;">-{r['de_pension_a']:,.2f}\u20ac</td>
-                <td style="padding: 6px; text-align: right;">-{r['de_pension_b']:,.2f}\u20ac</td>
+                <td style="padding: 6px; text-align: right;">-{r['de_pension_a']:,.2f}€</td>
+                <td style="padding: 6px; text-align: right;">-{r['de_pension_b']:,.2f}€</td>
                 <td style="padding: 6px; text-align: right;"></td>
             </tr>
             <tr>
                 <td style="padding: 6px;">Health Insurance</td>
-                <td style="padding: 6px; text-align: right;">-{r['de_health_a']:,.2f}\u20ac</td>
-                <td style="padding: 6px; text-align: right;">-{r['de_health_b']:,.2f}\u20ac</td>
+                <td style="padding: 6px; text-align: right;">-{r['de_health_a']:,.2f}€</td>
+                <td style="padding: 6px; text-align: right;">-{r['de_health_b']:,.2f}€</td>
                 <td style="padding: 6px; text-align: right;"></td>
             </tr>
              <tr>
                 <td style="padding: 6px;">Nursing Care Insurance</td>
-                <td style="padding: 6px; text-align: right;">-{r['de_nursing_a']:,.2f}\u20ac</td>
-                <td style="padding: 6px; text-align: right;">-{r['de_nursing_b']:,.2f}\u20ac</td>
+                <td style="padding: 6px; text-align: right;">-{r['de_nursing_a']:,.2f}€</td>
+                <td style="padding: 6px; text-align: right;">-{r['de_nursing_b']:,.2f}€</td>
                 <td style="padding: 6px; text-align: right;"></td>
             </tr>
              <tr>
                 <td style="padding: 6px;">Unemployment Insurance</td>
-                <td style="padding: 6px; text-align: right;">-{r['de_unemployment_a']:,.2f}\u20ac</td>
-                <td style="padding: 6px; text-align: right;">-{r['de_unemployment_b']:,.2f}\u20ac</td>
+                <td style="padding: 6px; text-align: right;">-{r['de_unemployment_a']:,.2f}€</td>
+                <td style="padding: 6px; text-align: right;">-{r['de_unemployment_b']:,.2f}€</td>
                 <td style="padding: 6px; text-align: right;"></td>
             </tr>
             <tr style="font-weight:bold;">
                 <td style="padding: 6px;">Total Social Security</td>
                 <td style="padding: 6px; text-align: right;"></td>
                 <td style="padding: 6px; text-align: right;"></td>
-                <td style="padding: 6px; text-align: right;">-{r['total_vorsorge']:,.2f}\u20ac</td>
+                <td style="padding: 6px; text-align: right;">-{r['total_vorsorge']:,.2f}€</td>
             </tr>
             <tr style="background-color:#f2f2f2;">
                 <td style="padding: 6px;" colspan="4"><b>(-) Work Expenses & Deductions (Werbungskosten / Pauschalen)</b></td>
             </tr>
             <tr>
                 <td style="padding: 6px;">Income-Related Expenses (Werbungskosten)</td>
-                <td style="padding: 6px; text-align: right;">-{r['wk_a']:,.2f}\u20ac</td>
-                <td style="padding: 6px; text-align: right;">-{r['wk_b']:,.2f}\u20ac</td>
+                <td style="padding: 6px; text-align: right;">-{r['wk_a']:,.2f}€</td>
+                <td style="padding: 6px; text-align: right;">-{r['wk_b']:,.2f}€</td>
                 <td style="padding: 6px; text-align: right;"></td>
             </tr>
              <tr>
                 <td style="padding: 6px;">Other Deductions (Parents, Kita etc.)</td>
                 <td style="padding: 6px; text-align: right;"></td>
                 <td style="padding: 6px; text-align: right;"></td>
-                <td style="padding: 6px; text-align: right;">-{r['other_deductions']:,.2f}\u20ac</td>
+                <td style="padding: 6px; text-align: right;">-{r['other_deductions']:,.2f}€</td>
             </tr>
             <tr style="background-color:#e6e6fa; font-weight:bold;">
                 <td style="padding: 6px;">= Taxable Income (Germany)</td>
                 <td style="padding: 6px; text-align: right;"></td>
                 <td style="padding: 6px; text-align: right;"></td>
-                <td style="padding: 6px; text-align: right;">{r['taxable_income_de']:,.2f}\u20ac</td>
+                <td style="padding: 6px; text-align: right;">{r['taxable_income_de']:,.2f}€</td>
             </tr>
         </table>
         """
         
         summary_html = f"""
         <h3>Tax Calculation Summary</h3>
-        <p><b>(+) Foreign Income (for rate calculation):</b> {r['foreign_income']:,.2f}\u20ac</p>
-        <p><b>(=) Global Income for Rate:</b> {r['global_income_for_rate']:,.2f}\u20ac</p>
-        <p><b>(&rarr;) Effective Tax Rate (Progressionsvorbehalt):</b> {r['effective_tax_rate']*100:.2f}%</p>
+        <p><b>(+) Foreign Income (for rate calculation):</b> {r['foreign_income']:,.2f}€</p>
+        <p><b>(=) Global Income for Rate:</b> {r['global_income_for_rate']:,.2f}€</p>
+        <p><b>(→) Effective Tax Rate (Progressionsvorbehalt):</b> {r['effective_tax_rate']*100:.2f}%</p>
         <hr>
-        <p><b>Calculated German Tax on Taxable Income:</b> {r['final_tax_liability']:,.2f}\u20ac</p>
-        <p style='color:blue;'><b>(-) Credit for Ancillary Labor Costs (\u00a735a):</b> -{r['nebenkosten_credit']:,.2f}\u20ac</p>
-        <p style='color:blue;'><b>(-) Credit for Tax Paid in India (TDS):</b> -{r['tds_credit']:,.2f}\u20ac</p>
-        <h3>Net German Tax Due: {r['net_german_tax_due']:,.2f}\u20ac</h3>
+        <p><b>Calculated German Tax on Taxable Income:</b> {r['final_tax_liability']:,.2f}€</p>
+        <p style='color:blue;'><b>(-) Credit for Ancillary Labor Costs (§35a):</b> -{r['nebenkosten_credit']:,.2f}€</p>
+        <p style='color:blue;'><b>(-) Credit for Tax Paid in India (TDS):</b> -{r['tds_credit']:,.2f}€</p>
+        <h3>Net German Tax Due: {r['net_german_tax_due']:,.2f}€</h3>
         <hr>
-        <p><b>Tax Already Paid in Germany (Lohnsteuer):</b> {r['total_tax_paid']:,.2f}\u20ac</p>
+        <p><b>Tax Already Paid in Germany (Lohnsteuer):</b> {r['total_tax_paid']:,.2f}€</p>
         {refund_or_payment_text}
         """
 
-        html = f"<h2>Tax Filing Roadmap</h2>{details_html}<br>{summary_html}"
+        html = f"{warnings_html}<h2>Tax Filing Roadmap</h2>{details_html}<br>{summary_html}"
         self.result_label.setText(html)
 
     def save_report(self):

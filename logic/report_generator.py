@@ -120,6 +120,30 @@ def _calculate_credits(data):
         "total_credits": nk_credit + tds_credit_eur
     }
 
+def run_validation_checks(data, report_context):
+    """
+    Runs a series of validation checks on the input and calculated data
+    to provide helpful warnings to the user.
+    """
+    warnings = []
+
+    # 1. Social Security Check
+    if report_context.get("total_vorsorge", 0.0) == 0 and report_context.get("total_gross", 0.0) > 20000:
+        warnings.append("Social security contributions seem missing. This will cause an overestimation of tax.")
+
+    # 2. Tax Class Check
+    if data.get("is_married") and report_context.get("tax_class") == 1:
+        warnings.append("You are filing as married but using Tax Class 1. Tax Class 4 (Splitting) is usually more beneficial.")
+
+    # 3. Child Benefit Check (Kinderfreibetrag vs. Kindergeld)
+    # This is just a note, as the tax office automatically chooses the best option.
+    # We add this note if the tax liability is significant, suggesting the allowance was likely beneficial.
+    # Annual Kindergeld for one child is ~3000 EUR. If tax is higher, allowance was probably better.
+    if data.get("num_kids", 0) > 0 and report_context.get("final_tax_liability", 0) > 3000:
+        warnings.append("The tool has applied the Child Allowance (Kinderfreibetrag) as it was more beneficial than Kindergeld.")
+        
+    return warnings
+
 def generate_full_report(data):
     """
     Orchestrates the full tax calculation process for a dual-income household 
@@ -182,7 +206,7 @@ def generate_full_report(data):
     # 7. Final Refund or Payment
     refund_or_payment = total_tax_paid - net_german_tax_due
     
-    # 8. Compile and return the detailed report
+    # 8. Compile the detailed report
     report = {
         # Raw Inputs
         "de_gross_a": de_gross_a, "de_tax_paid_a": de_tax_paid_a,
@@ -211,6 +235,9 @@ def generate_full_report(data):
         "refund_or_payment": refund_or_payment,
         "tax_class": tax_class,
     }
+    
+    # 9. Run validation checks and add warnings to the report
+    report["warnings"] = run_validation_checks(data, report)
     
     d_print("\n--- FINAL COMPILED REPORT ---")
     for key, value in report.items():
