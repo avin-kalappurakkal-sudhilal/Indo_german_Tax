@@ -45,3 +45,20 @@ def calculate_german_tax(zvE, year, is_married=True):
         tax = 0.45 * zvE - 18936.88
 
     return (tax * 2) if is_married else tax
+
+def calculate_soli(tax_liability, tax_year, is_married):
+    # Thresholds for 2024-2026 (Tax Liability amount)
+    thresholds = {
+        2024: 18130,
+        2025: 19450,
+        2026: 20350
+    }
+    
+    limit = thresholds.get(tax_year, 20350)
+    if is_married:
+        limit *= 2  # Double for joint assessment
+        
+    if tax_liability <= limit:
+        return 0.0
+    # Sliding zone logic (Milderungszone) can be added here
+    return tax_liability * 0.055

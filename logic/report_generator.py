@@ -1,6 +1,6 @@
 # logic/report_generator.py
 from . import constants
-from .tax_calculator import calculate_german_tax
+from .tax_calculator import calculate_german_tax, calculate_soli
 
 DEBUG = True
 
@@ -205,7 +205,8 @@ def generate_full_report(data):
     
     # 6. Final Tax Liability
     final_tax_liability = taxable_income_de * effective_rate
-    net_german_tax_due = final_tax_liability - credits["total_credits"]
+    soli = calculate_soli(final_tax_liability, tax_year, is_married)
+    net_german_tax_due = final_tax_liability + soli - credits["total_credits"]
     net_german_tax_due = max(0, net_german_tax_due)
     
     # 7. Final Refund or Payment
@@ -235,6 +236,7 @@ def generate_full_report(data):
         "global_income_for_rate": global_income_for_rate,
         "effective_tax_rate": effective_rate,
         "final_tax_liability": final_tax_liability,
+        "soli": soli,
         "net_german_tax_due": net_german_tax_due,
         
         # Final Result

@@ -2,6 +2,7 @@ import unittest
 from logic.report_generator import generate_full_report
 from logic.utils import estimate_social_security
 from logic.constants import WERBUNGSKOSTEN_PAUSCHALE, TAX_YEAR_CONSTANTS
+from logic.tax_calculator import calculate_soli
 
 class TestTaxLogic(unittest.TestCase):
 
@@ -16,8 +17,7 @@ class TestTaxLogic(unittest.TestCase):
         has_kids = False # Affects nursing insurance
 
         # 1. Estimate social security contributions
-        # These are deductions from the gross salary.
-        social_contributions = estimate_social_security(gross_salary, year, has_kids)
+        social_contributions = estimate_social_security(gross_salary, year, num_children=0)
         total_social_contributions = sum(social_contributions.values())
 
         # 2. Prepare the input data dictionary for the report generator
@@ -74,7 +74,7 @@ class TestTaxLogic(unittest.TestCase):
 
         # 1. Estimate social security contributions
         # The caps for 2025 are higher than 2024. Gross salary is above the pension cap.
-        social_contributions = estimate_social_security(gross_salary, year, has_kids)
+        social_contributions = estimate_social_security(gross_salary, year, num_children=1)
         total_social_contributions = sum(social_contributions.values())
         
         # 2. Prepare the input data dictionary
@@ -118,6 +118,57 @@ class TestTaxLogic(unittest.TestCase):
         self.assertGreater(report["taxable_income_de"], basic_allowance_2025 * 2)
         self.assertGreater(report["final_tax_liability"], 0)
 
+class TestSoliCalculation(unittest.TestCase):
+    # Thresholds for 2024-2026 (Tax Liability amount) - duplicated for testing purposes
+    thresholds = {
+        2024: 18130,
+        2025: 19450,
+        2026: 20350
+    }
+
+    def test_soli_single_below_threshold(self):
+        """Test Soli calculation for a single person with tax liability below the exemption limit."""
+        year = 2024
+        tax_liability = self.thresholds[year] - 1000
+        self.assertEqual(calculate_soli(tax_liability, year, is_married=False), 0.0)
+
+    def test_soli_single_above_threshold(self):
+        """Test Soli calculation for a single person with tax liability above the exemption limit."""
+        year = 2024
+        tax_liability = self.thresholds[year] + 1000
+        expected_soli = tax_liability * 0.055
+        self.assertAlmostEqual(calculate_soli(tax_liability, year, is_married=False), expected_soli)
+
+    def test_soli_married_below_threshold(self):
+        """Test Soli calculation for a married couple with tax liability below the doubled exemption limit."""
+        year = 2025
+        limit = self.thresholds[year] * 2
+        tax_liability = limit - 2000
+        self.assertEqual(calculate_soli(tax_liability, year, is_married=True), 0.0)
+
+    def test_soli_married_above_threshold(self):
+        """Test Soli calculation for a married couple with tax liability above the doubled exemption limit."""
+        year = 2025
+        limit = self.thresholds[year] * 2
+        tax_liability = limit + 2000
+        expected_soli = tax_liability * 0.055
+        self.assertAlmostEqual(calculate_soli(tax_liability, year, is_married=True), expected_soli)
+
+    def test_soli_year_2026_edge_case(self):
+        """Test Soli calculation for the year 2026 at exactly the threshold."""
+        year = 2026
+        tax_liability = self.thresholds[year]
+        self.assertEqual(calculate_soli(tax_liability, year, is_married=False), 0.0)
+
+    def test_soli_unknown_year_uses_default(self):
+        """Test that an unknown year defaults to the latest available Soli limit (2026)."""
+        # Tax liability is above 2026 single limit
+        tax_liability = self.thresholds[2026] + 1000
+        expected_soli = tax_liability * 0.055
+        # Using a future year that is not in the constants
+        self.assertAlmostEqual(calculate_soli(tax_liability, 2028, is_married=False), expected_soli)
+
 
 if __name__ == '__main__':
     unittest.main()
+

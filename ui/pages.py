@@ -164,14 +164,14 @@ class GermanIncomePage(QWizardPage):
 
     def _estimate_ss_a(self):
         gross_salary = self.gross_a.value()
-        has_kids = (self.field("num_kids") or 0) > 0
+        num_children = int(self.field("num_kids") or 0)
         tax_year = int(self.tax_year_combo.currentText())
 
         if gross_salary <= 0:
             QMessageBox.warning(self, "Missing Gross Salary", "Please enter a valid Gross Salary for Person A first.")
             return
 
-        estimates = estimate_social_security(gross_salary, tax_year, has_kids)
+        estimates = estimate_social_security(gross_salary, tax_year, num_children)
 
         self.pension_a.setValue(estimates["pension"])
         self.health_a.setValue(estimates["health"])
@@ -180,14 +180,14 @@ class GermanIncomePage(QWizardPage):
 
     def _estimate_ss_b(self):
         gross_salary = self.gross_b.value()
-        has_kids = (self.field("num_kids") or 0) > 0
+        num_children = int(self.field("num_kids") or 0)
         tax_year = int(self.tax_year_combo.currentText())
 
         if gross_salary <= 0:
             QMessageBox.warning(self, "Missing Gross Salary", "Please enter a valid Gross Salary for Person B first.")
             return
 
-        estimates = estimate_social_security(gross_salary, tax_year, has_kids)
+        estimates = estimate_social_security(gross_salary, tax_year, num_children)
 
         self.pension_b.setValue(estimates["pension"])
         self.health_b.setValue(estimates["health"])
@@ -447,6 +447,7 @@ class ResultPage(QWizardPage):
         <p><b>(→) Effective Tax Rate (Progressionsvorbehalt):</b> {r['effective_tax_rate']*100:.2f}%</p>
         <hr>
         <p><b>Calculated German Tax on Taxable Income:</b> {r['final_tax_liability']:,.2f}€</p>
+        <p><b>(+) Solidarity Surcharge (Soli):</b> {r.get('soli', 0.0):,.2f}€</p>
         <p style='color:blue;'><b>(-) Credit for Ancillary Labor Costs (§35a):</b> -{r['nebenkosten_credit']:,.2f}€</p>
         <p style='color:blue;'><b>(-) Credit for Tax Paid in India (TDS):</b> -{r['tds_credit']:,.2f}€</p>
         <h3>Net German Tax Due: {r['net_german_tax_due']:,.2f}€</h3>
@@ -485,6 +486,7 @@ class ResultPage(QWizardPage):
             f"(&rarr;) Effective Tax Rate:            {r['effective_tax_rate']*100:>7.2f}%\n"
             f"---------------------------------------\n"
             f"(=) Calculated German Tax:       {r['final_tax_liability']:>5,.2f}\u20ac\n"
+            f"(+) Solidarity Surcharge (Soli): {r.get('soli', 0.0):>5,.2f}\u20ac\n"
             f"(-) Credits (\u00a735a, TDS):         -{r['total_credits']:>5,.2f}\u20ac\n"
             f"---------------------------------------\n"
             f"(=) NET GERMAN TAX DUE:          {r['net_german_tax_due']:>5,.2f}\u20ac\n\n"
