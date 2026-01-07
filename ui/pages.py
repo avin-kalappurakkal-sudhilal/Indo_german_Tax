@@ -6,7 +6,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from logic.report_generator import generate_full_report
-from logic.utils import estimate_social_security_2026
+from logic.utils import estimate_social_security
+from logic.constants import TAX_YEAR_CONSTANTS
 
 # ==========================================
 # UI PAGES
@@ -71,7 +72,21 @@ class GermanIncomePage(QWizardPage):
     def __init__(self):
         super().__init__()
         self.setTitle("Step 2: German Employment Income (Lohnsteuerbescheinigung)")
-        main_layout = QHBoxLayout(self)
+        
+        # Overall page layout
+        page_layout = QVBoxLayout(self)
+
+        # Tax Year Selection
+        year_layout = QFormLayout()
+        self.tax_year_combo = QComboBox()
+        self.tax_year_combo.addItems([str(y) for y in sorted(TAX_YEAR_CONSTANTS.keys())])
+        self.tax_year_combo.setCurrentText("2026")
+        year_layout.addRow(QLabel("<b>Select Tax Year:</b>"), self.tax_year_combo)
+        page_layout.addLayout(year_layout)
+
+        # Main content layout (columns for persons)
+        main_layout = QHBoxLayout()
+        page_layout.addLayout(main_layout)
 
         # PERSON A COLUMN
         group_a = QGroupBox("Person A (Main Earner)")
@@ -131,6 +146,7 @@ class GermanIncomePage(QWizardPage):
         main_layout.addWidget(group_b)
 
         # Register Fields for Person A
+        self.registerField("tax_year", self.tax_year_combo, "currentText")
         self.registerField("de_gross_a*", self.gross_a, "value", self.gross_a.valueChanged)
         self.registerField("de_tax_paid_a*", self.tax_paid_a, "value", self.tax_paid_a.valueChanged)
         self.registerField("de_pension_a", self.pension_a, "value", self.pension_a.valueChanged)
@@ -149,12 +165,13 @@ class GermanIncomePage(QWizardPage):
     def _estimate_ss_a(self):
         gross_salary = self.gross_a.value()
         has_kids = (self.field("num_kids") or 0) > 0
-        
+        tax_year = int(self.tax_year_combo.currentText())
+
         if gross_salary <= 0:
             QMessageBox.warning(self, "Missing Gross Salary", "Please enter a valid Gross Salary for Person A first.")
             return
 
-        estimates = estimate_social_security_2026(gross_salary, has_kids)
+        estimates = estimate_social_security(gross_salary, tax_year, has_kids)
 
         self.pension_a.setValue(estimates["pension"])
         self.health_a.setValue(estimates["health"])
@@ -164,12 +181,13 @@ class GermanIncomePage(QWizardPage):
     def _estimate_ss_b(self):
         gross_salary = self.gross_b.value()
         has_kids = (self.field("num_kids") or 0) > 0
-        
+        tax_year = int(self.tax_year_combo.currentText())
+
         if gross_salary <= 0:
             QMessageBox.warning(self, "Missing Gross Salary", "Please enter a valid Gross Salary for Person B first.")
             return
 
-        estimates = estimate_social_security_2026(gross_salary, has_kids)
+        estimates = estimate_social_security(gross_salary, tax_year, has_kids)
 
         self.pension_b.setValue(estimates["pension"])
         self.health_b.setValue(estimates["health"])

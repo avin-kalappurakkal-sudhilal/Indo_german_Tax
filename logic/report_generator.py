@@ -155,6 +155,7 @@ def generate_full_report(data):
     d_print("------------------------------------------")
 
     # 1. Collect Basic Inputs
+    tax_year = int(data.get("tax_year", "2024")) # Default to 2024 if not provided
     de_gross_a = data.get("de_gross_a", 0.0)
     de_tax_paid_a = data.get("de_tax_paid_a", 0.0)
     de_gross_b = data.get("de_gross_b", 0.0)
@@ -174,7 +175,7 @@ def generate_full_report(data):
         # Single: Index 0 -> Class 1
         tax_class = 1
     
-    d_print(f"  - Determined marital status: {is_married} | Tax Class: {tax_class}")
+    d_print(f"  - Determined tax year: {tax_year} | marital status: {is_married} | Tax Class: {tax_class}")
 
     # 2. Foreign Income (converted to EUR)
     in_rent_eur = data.get("in_rent", 0.0) * constants.INR_TO_EUR_RATE
@@ -188,6 +189,10 @@ def generate_full_report(data):
     # 4. Taxable Income (zu versteuerndes Einkommen - zvE)
     # This is the final income figure upon which tax is calculated.
     taxable_income_de = total_gross - deductions["total_deductions"]
+    
+    # In Germany, taxable income cannot be less than the basic allowance if there is income.
+    # However, for calculation purposes, it can be lower, even zero.
+    # The tax formula itself handles the basic allowance.
     taxable_income_de = max(0, taxable_income_de)
 
     # 5. Progression Clause (Progressionsvorbehalt)
@@ -195,7 +200,7 @@ def generate_full_report(data):
     global_income_for_rate = taxable_income_de + foreign_income
     
     # Tax is calculated on the German income, but at the rate determined by global income.
-    tax_on_global = calculate_german_tax(global_income_for_rate, is_married)
+    tax_on_global = calculate_german_tax(global_income_for_rate, tax_year, is_married)
     effective_rate = tax_on_global / global_income_for_rate if global_income_for_rate > 0 else 0
     
     # 6. Final Tax Liability
@@ -209,6 +214,7 @@ def generate_full_report(data):
     # 8. Compile the detailed report
     report = {
         # Raw Inputs
+        "tax_year": tax_year,
         "de_gross_a": de_gross_a, "de_tax_paid_a": de_tax_paid_a,
         "de_gross_b": de_gross_b, "de_tax_paid_b": de_tax_paid_b,
         "total_gross": total_gross, "total_tax_paid": total_tax_paid,

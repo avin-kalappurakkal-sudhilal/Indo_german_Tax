@@ -18,3 +18,33 @@ MAX_HOME_OFFICE_DEDUCTION = 1260.0 # Maximum home office deduction per person
 COMMUTE_ALLOWANCE_LOW_KM = 0.30
 COMMUTE_ALLOWANCE_HIGH_KM = 0.38
 COMMUTE_ALLOWANCE_THRESHOLD_KM = 20
+
+# Constants for different tax years
+TAX_YEAR_CONSTANTS = {
+    2024: {
+        'BASIC_ALLOWANCE': 11784,
+        'CHILD_ALLOWANCE': 9312,
+        'SOCIAL_SECURITY_CAPS': {
+            # Note: Using West Germany cap. East Germany is €89,400.
+            # Unified from 2025.
+            'pension': 90600,
+            'health': 62100,
+        }
+    },
+    2025: {
+        'BASIC_ALLOWANCE': 12096,
+        'CHILD_ALLOWANCE': 9600,
+        'SOCIAL_SECURITY_CAPS': {
+            'pension': 96600,
+            'health': 66150,
+        }
+    },
+    2026: {
+        'BASIC_ALLOWANCE': 12348,
+        'CHILD_ALLOWANCE': 9756,
+        'SOCIAL_SECURITY_CAPS': {
+            'pension': 101400,
+            'health': 69750, # Based on previous version of estimate_social_security_2026
+        }
+    }
+}
